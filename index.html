@@ -173,6 +173,19 @@
     box-shadow:0 0 24px rgba(224,98,46,.3);
     outline:none;
   }
+  #share{
+    margin-top:16px;padding:11px 34px;
+    font-family:'Oswald',Arial,sans-serif;
+    font-size:14px;font-weight:400;letter-spacing:.22em;text-transform:uppercase;text-indent:.22em;
+    color:rgba(232,220,200,.8);background:transparent;cursor:pointer;
+    border:1px solid rgba(224,98,46,.5);border-radius:3px;
+    transition:background .25s, border-color .2s;
+  }
+  #share:hover,#share:focus-visible{
+    background:rgba(224,98,46,.1);
+    border-color:var(--braise);
+    outline:none;
+  }
 
   @media (max-height:600px){
     h1{font-size:46px}
@@ -221,6 +234,7 @@
   <div id="newBest">✦ Nouveau record ✦</div>
   <div id="overBest"></div>
   <button id="replay">Recommencer</button>
+  <button id="share">Partager mon score</button>
 </div>
 
 <!-- Écran de pause -->
@@ -319,6 +333,7 @@ const ui = {
   newBest:    document.getElementById('newBest'),
   overBest:   document.getElementById('overBest'),
   replay:     document.getElementById('replay'),
+  share:      document.getElementById('share'),
   pause:      document.getElementById('pause'),
   mute:       document.getElementById('mute'),
 };
@@ -885,6 +900,22 @@ window.addEventListener('pointercancel', (e) => {
   if (e.pointerId === sid){ sid = null; down = false; }
 });
 ui.replay.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
+// partage du score (boucle virale) : Web Share API, repli copie presse-papier
+function shareScore(){
+  const s = Math.floor(score);
+  const txt = 'Sous le Fer ⚔ — j\'ai survécu jusqu\'à la Couche ' + roman(layer) + ' avec ' + s + ' points. Tu fais mieux ?';
+  const url = location.href;
+  if (navigator.share){
+    navigator.share({ title: 'Sous le Fer', text: txt, url }).catch(() => {});
+  } else if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt + ' ' + url).then(() => {
+      const old = ui.share.textContent;
+      ui.share.textContent = 'Score copié !';
+      setTimeout(() => { ui.share.textContent = old; }, 1600);
+    }).catch(() => {});
+  }
+}
+ui.share.addEventListener('click', (e) => { e.stopPropagation(); shareScore(); });
 
 // clavier (desktop) : flèches = 4 directions cardinales
 const KEY_ANGLE = {
