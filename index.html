@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Sous le Fer</title>
+<meta name="theme-color" content="#1A1614">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sous le Fer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --charbon:#1A1614;
+    --pierre:#4A413A;
+    --pierre-clair:#6B5F54;
+    --braise:#E0622E;
+    --braise-vive:#FF8A4C;
+    --os:#E8DCC8;
+    --sang:#8C2A1E;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:var(--charbon)}
+  body{
+    font-family:'Oswald',Arial,sans-serif;
+    color:var(--os);
+    touch-action:none;
+    user-select:none;-webkit-user-select:none;
+    overscroll-behavior:none;
+  }
+  #game{display:block;position:fixed;inset:0;width:100%;height:100%}
+
+  #vignette{
+    position:fixed;inset:0;pointer-events:none;z-index:2;
+    background:radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(8,5,4,.38) 100%);
+  }
+
+  /* ---------- HUD ---------- */
+  #hud{
+    position:fixed;top:max(16px, env(safe-area-inset-top));left:0;right:0;
+    text-align:center;z-index:3;pointer-events:none;
+    opacity:0;transition:opacity .5s ease;
+  }
+  #hud.visible{opacity:1}
+  #score{
+    font-size:44px;font-weight:500;letter-spacing:.04em;
+    color:var(--os);
+    text-shadow:0 0 20px rgba(224,98,46,.4);
+    line-height:1;
+    transition:color .35s ease, text-shadow .35s ease;
+  }
+  #score.record{color:var(--braise-vive);text-shadow:0 0 30px rgba(255,138,76,.8)}
+  #combo{
+    margin-top:2px;font-size:16px;font-weight:400;letter-spacing:.26em;text-transform:uppercase;
+    color:var(--braise);opacity:0;transition:opacity .25s ease;
+  }
+  #combo.on{opacity:.95}
+  #layer{
+    margin-top:6px;font-size:13px;font-weight:300;letter-spacing:.42em;text-transform:uppercase;
+    color:var(--pierre-clair);
+  }
+
+  /* ---------- Jauge de garde ---------- */
+  #guard{
+    position:fixed;left:0;right:0;bottom:max(26px, env(safe-area-inset-bottom));
+    z-index:3;display:flex;gap:10px;justify-content:center;
+    opacity:0;transition:opacity .5s ease;pointer-events:none;
+  }
+  #guard.visible{opacity:1}
+  .pip{
+    width:30px;height:5px;border-radius:3px;
+    background:rgba(232,220,200,.14);
+    border:1px solid rgba(232,220,200,.2);
+    transition:background .2s ease, box-shadow .2s ease, opacity .3s ease;
+  }
+  .pip.full{
+    background:var(--braise);
+    border-color:var(--braise-vive);
+    box-shadow:0 0 12px rgba(224,98,46,.6);
+  }
+  .pip.charging{
+    background:rgba(224,98,46,.35);
+    animation:pipCharge 1s ease-in-out infinite;
+  }
+  @keyframes pipCharge{0%,100%{opacity:.4}50%{opacity:.9}}
+
+  /* ---------- Bouton son ---------- */
+  #mute{
+    position:fixed;top:max(12px, env(safe-area-inset-top));right:14px;z-index:6;
+    width:42px;height:42px;border-radius:6px;
+    background:rgba(74,65,58,.5);border:1px solid rgba(224,98,46,.4);
+    color:var(--braise);font-size:16px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-family:Arial,sans-serif;
+    transition:border-color .2s;
+  }
+  #mute:focus-visible{outline:2px solid var(--braise);outline-offset:2px}
+
+  /* ---------- Écrans ---------- */
+  .screen{
+    position:fixed;inset:0;z-index:5;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:24px;
+    background:rgba(10,7,5,.5);
+    backdrop-filter:blur(2px);
+    opacity:1;transition:opacity .45s ease;
+  }
+  .screen.hidden{opacity:0;pointer-events:none}
+
+  .blade{width:160px;height:30px;margin-bottom:10px;opacity:.85}
+
+  h1{
+    font-size:62px;font-weight:600;letter-spacing:.16em;text-indent:.16em;
+    color:var(--os);text-transform:uppercase;
+    text-shadow:0 0 30px rgba(224,98,46,.45);
+  }
+  .rule{
+    width:130px;height:2px;margin:16px auto 18px;
+    background:linear-gradient(90deg, transparent, var(--braise) 30%, var(--braise) 70%, transparent);
+  }
+  .tagline{
+    font-size:20px;font-weight:300;
+    color:var(--pierre-clair);max-width:320px;line-height:1.5;
+  }
+  .ctrl{
+    margin-top:16px;font-size:15px;font-weight:300;letter-spacing:.03em;line-height:1.55;
+    color:rgba(232,220,200,.55);max-width:300px;
+  }
+  .hint{
+    margin-top:40px;font-size:14px;font-weight:400;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--braise);animation:breathe 2.4s ease-in-out infinite;
+  }
+  @keyframes breathe{0%,100%{opacity:.45}50%{opacity:1}}
+
+  .best{
+    margin-top:14px;font-size:15px;font-weight:300;letter-spacing:.18em;
+    color:rgba(232,220,200,.5);
+  }
+
+  #over h2,#pause h2{
+    font-size:25px;font-weight:300;letter-spacing:.05em;
+    color:var(--pierre-clair);text-transform:uppercase;
+  }
+  #finalScore{
+    font-size:82px;font-weight:600;line-height:1.05;margin-top:8px;
+    color:var(--os);text-shadow:0 0 30px rgba(224,98,46,.4);
+  }
+  #finalDepth{
+    margin-top:2px;font-size:15px;font-weight:300;letter-spacing:.3em;text-transform:uppercase;
+    color:var(--braise);
+  }
+  #newBest{
+    margin-top:8px;font-size:14px;font-weight:500;letter-spacing:.3em;text-transform:uppercase;
+    color:var(--braise-vive);display:none;
+  }
+  #newBest.show{display:block;animation:breathe 2s ease-in-out infinite}
+  #overBest{margin-top:14px;font-size:16px;font-weight:300;letter-spacing:.16em;color:rgba(232,220,200,.55)}
+
+  #replay{
+    margin-top:38px;padding:15px 50px;
+    font-family:'Oswald',Arial,sans-serif;
+    font-size:18px;font-weight:400;letter-spacing:.26em;text-transform:uppercase;text-indent:.26em;
+    color:var(--os);background:transparent;cursor:pointer;
+    border:1px solid var(--braise);border-radius:3px;
+    transition:background .25s, box-shadow .25s;
+  }
+  #replay:hover,#replay:focus-visible{
+    background:rgba(224,98,46,.14);
+    box-shadow:0 0 24px rgba(224,98,46,.3);
+    outline:none;
+  }
+
+  @media (max-height:600px){
+    h1{font-size:46px}
+    #finalScore{font-size:60px}
+    .hint{margin-top:24px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .hint,#newBest.show,.pip.charging{animation:none;opacity:1}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+<div id="vignette"></div>
+
+<div id="hud" aria-live="off">
+  <div id="score">0</div>
+  <div id="combo"></div>
+  <div id="layer">Couche I</div>
+</div>
+
+<div id="guard" aria-hidden="true"></div>
+
+<button id="mute" aria-label="Couper le son">♪</button>
+
+<!-- Écran titre -->
+<div id="menu" class="screen">
+  <svg class="blade" viewBox="0 0 160 30" fill="none" aria-hidden="true">
+    <path d="M6 15 H120 L150 15 L120 12 V18 L120 15" stroke="#E0622E" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="112" y="8" width="3" height="14" rx="1" fill="#E0622E"/>
+  </svg>
+  <h1>Sous le Fer</h1>
+  <div class="rule"></div>
+  <p class="tagline">Seul, cerné dans le noir.<br>Abats chaque guerrier à l'instant juste.</p>
+  <p class="ctrl">Glisse vers le guerrier qui lève son arme et frappe l'ouverture.<br>Plus tu frappes tard, plus le coup est parfait.</p>
+  <div class="hint">Touche l'écran pour descendre</div>
+  <div class="best" id="menuBest"></div>
+</div>
+
+<!-- Écran de fin -->
+<div id="over" class="screen hidden">
+  <h2>Ta garde a cédé…</h2>
+  <div id="finalScore">0</div>
+  <div id="finalDepth"></div>
+  <div id="newBest">✦ Nouveau record ✦</div>
+  <div id="overBest"></div>
+  <button id="replay">Recommencer</button>
+</div>
+
+<!-- Écran de pause -->
+<div id="pause" class="screen hidden">
+  <h2>Suspendu</h2>
+  <div class="hint">Touche l'écran pour reprendre</div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   SOUS LE FER — survie à la parade, en descente
+   Tu es fixe au centre. Les lames convergent dans le noir.
+   Un seul geste : glisser vers l'ennemi qui télégraphe son
+   coup, pendant sa fenêtre, pour le parer et riposter.
+   Tout se pare. Rien ne se frappe librement.
+   Palette : charbon #1A1614 · braise #E0622E · os #E8DCC8
+   ============================================================ */
+
+// ---------- Constantes d'équilibrage ----------
+const BRAISE       = '#E0622E';
+const BRAISE_VIVE  = '#FF8A4C';
+const OS           = '#E8DCC8';
+
+const GUARD_MAX        = 3;      // points de garde
+const GUARD_REGEN_TIME = 5.0;    // s sans dégât pour regagner 1 point
+const PARRY_CONE       = 42;     // tolérance angulaire du swipe (degrés, ±)
+const SWIPE_MIN_DIST   = 22;     // distance min (px) pour qu'un glissement compte comme swipe
+const WHIFF_LOCK       = 0.30;   // s de verrou de lame après un swipe raté
+const PERFECT_FRACTION = 0.34;   // dernier tiers de la fenêtre = parade parfaite
+
+const ENGAGE_DIST      = 96;     // distance au centre où l'ennemi s'arrête et télégraphe
+const APPROACH_SPEED   = 70;     // vitesse d'approche de base (px/s), monte avec la couche
+
+const COMBO_STEP       = 0.10;   // +10 % de multiplicateur par parade
+const COMBO_CAP        = 3.0;    // multiplicateur plafonné ×3
+const SCORE_PARRY      = 10;     // points de base par parade (× combo × couche × parfait)
+
+// fenêtres de télégraphe par type (s), couche 1 — rétrécissent en profondeur
+const TELE_LENT   = 0.95;
+const TELE_VIF    = 0.55;
+const TELE_FOURBE = 0.55;
+const FEINT_DUR   = 0.34;        // durée de la fausse amorce du Fourbe
+const TELE_FLOOR  = 0.45;        // plancher : une fenêtre ne descend jamais sous ça (relevé : lisibilité)
+const TELE_SHRINK = 0.025;       // rétrécissement par couche (adouci : rythme moins brutal)
+
+// Frénésie « Tranchant » : amplificateur du geste central (aucun nouvel input)
+const FRENZY_COMBO = 10;         // combo qui déclenche la frénésie
+const FRENZY_DUR   = 5.0;        // s ; rechargé à chaque frappe pendant la frénésie
+const FRENZY_MULT  = 2;          // points ×2 pendant la frénésie
+
+// Bouclier de maîtrise : N parfaits consécutifs → encaisse un coup sans perdre de garde
+const PERFECT_SHIELD = 3;        // parfaits d'affilée pour gagner le bouclier
+
+// Taille visuelle des personnages (n'affecte PAS la géométrie de jeu / hitbox)
+const FIGURE_SCALE = 1.42;
+
+// Zones visuelles : paliers de 3 couches (dérive douce dans la zone, saut franc entre)
+const ZONE_SPAN = 3;
+const ZONES = [
+  { name: 'Les Galeries',  bg0:[64,64,72],  bg1:[30,28,30], wall:[78,80,90],  ring:[150,158,172], part:{col:[210,216,228], vy: 16, amp:0,   tw:0.4} },
+  { name: 'La Faille',     bg0:[86,58,40],  bg1:[40,26,18], wall:[120,82,52], ring:[224,150,86],  part:{col:[240,162,98],  vy:-14, amp:6,   tw:1.0} },
+  { name: 'Les Fournaises',bg0:[100,42,32], bg1:[42,18,16], wall:[140,60,46], ring:[240,118,76],  part:{col:[216,134,120], vy:-10, amp:10,  tw:1.6} },
+  { name: 'Le Cœur',       bg0:[88,28,24],  bg1:[30,12,12],  wall:[150,52,40], ring:[255,140,86],  part:{col:[255,200,124], vy:-22, amp:8,   tw:2.4} },
+];
+
+// ---------- Canvas ----------
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, DPR = 1, cx = 0, cy = 0;
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width  = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  cx = W / 2; cy = H / 2;
+}
+window.addEventListener('resize', resize);
+
+// ---------- Éléments UI ----------
+const ui = {
+  hud:        document.getElementById('hud'),
+  score:      document.getElementById('score'),
+  combo:      document.getElementById('combo'),
+  layer:      document.getElementById('layer'),
+  guard:      document.getElementById('guard'),
+  menu:       document.getElementById('menu'),
+  menuBest:   document.getElementById('menuBest'),
+  over:       document.getElementById('over'),
+  finalScore: document.getElementById('finalScore'),
+  finalDepth: document.getElementById('finalDepth'),
+  newBest:    document.getElementById('newBest'),
+  overBest:   document.getElementById('overBest'),
+  replay:     document.getElementById('replay'),
+  pause:      document.getElementById('pause'),
+  mute:       document.getElementById('mute'),
+};
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
+function roman(n){ return ROMAN[n - 1] || ('' + n); }
+
+// ---------- Persistance du record ----------
+let best = 0;
+async function loadBest(){
+  try{
+    if (window.storage){
+      const r = await window.storage.get('sousfer-best');
+      if (r && r.value) return parseInt(r.value, 10) || 0;
+    }
+  }catch(e){}
+  try{
+    if (typeof localStorage !== 'undefined'){
+      const v = localStorage.getItem('sousfer-best');
+      if (v) return parseInt(v, 10) || 0;
+    }
+  }catch(e){}
+  return 0;
+}
+async function saveBest(v){
+  try{ if (window.storage){ await window.storage.set('sousfer-best', String(v)); return; } }catch(e){}
+  try{ if (typeof localStorage !== 'undefined') localStorage.setItem('sousfer-best', String(v)); }catch(e){}
+}
+
+// ---------- Audio (Web Audio, sons synthétisés) ----------
+let audioCtx = null, master = null, muted = false;
+const VOLUMES = [
+  { label: '♪',  v: 1,    name: 'normal' },
+  { label: '♪+', v: 1.7,  name: 'fort' },
+  { label: '♪−', v: 0.45, name: 'bas' },
+  { label: '∅',  v: 0,    name: 'coupé' },
+];
+let volLevel = 0;
+function initAudio(){
+  if (muted) return;
+  if (audioCtx){ if (audioCtx.state === 'suspended') audioCtx.resume(); return; }
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    master = audioCtx.createGain();
+    master.gain.value = VOLUMES[volLevel].v;
+    master.connect(audioCtx.destination);
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }catch(e){}
+}
+function tone(freq, dur, type, vol, when){
+  if (!audioCtx || muted) return;
+  const t = audioCtx.currentTime + (when || 0);
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+// court burst de bruit filtré : sert de matière pour les sons métalliques
+function noiseBurst(dur, filterType, freq, q, vol, when){
+  if (!audioCtx || muted) return;
+  const t = audioCtx.currentTime + (when || 0);
+  const sr = audioCtx.sampleRate;
+  const buf = audioCtx.createBuffer(1, Math.floor(sr * dur), sr);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++){
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 1.2);
+  }
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const f = audioCtx.createBiquadFilter();
+  f.type = filterType; f.frequency.value = freq; f.Q.value = q;
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f); f.connect(g); g.connect(master);
+  src.start(t);
+}
+
+// parade : clang métallique (bruit résonant aigu + ping)
+function playParry(combo){
+  noiseBurst(0.18, 'bandpass', 2600, 7, 0.5);
+  noiseBurst(0.10, 'highpass', 4200, 1, 0.18);
+  tone(520 + Math.min(combo, 12) * 26, 0.10, 'triangle', 0.12);
+}
+// parade parfaite : le clang + un ping clair qui chante
+function playPerfect(combo){
+  playParry(combo);
+  tone(1180, 0.16, 'sine', 0.16, 0.02);
+  tone(1760, 0.20, 'sine', 0.10, 0.05);
+}
+// riposte : souffle de lame qui fend l'air
+function playRiposte(){
+  noiseBurst(0.22, 'bandpass', 1300, 1.4, 0.16, 0.02);
+}
+// transpercement : sifflement métallique qui traverse
+function playPierce(){
+  noiseBurst(0.18, 'bandpass', 2400, 2, 0.2);
+  tone(900, 0.12, 'sawtooth', 0.08);
+  tone(1500, 0.16, 'sine', 0.06, 0.03);
+}
+// dégât : coup sourd dans la garde + dissonance
+function playHit(){
+  tone(140, 0.4, 'triangle', 0.22);
+  tone(96, 0.5, 'sine', 0.2, 0.02);
+  noiseBurst(0.16, 'lowpass', 380, 0.7, 0.18);
+}
+// swipe raté : la lame mord le vide
+function playWhiff(){
+  noiseBurst(0.14, 'bandpass', 700, 1, 0.10);
+  tone(180, 0.12, 'sine', 0.06, 0.03);
+}
+// télégraphe : cue distinct par type d'ennemi
+function playTele(type){
+  if (type === 'lent')   tone(196, 0.22, 'sine', 0.10);
+  if (type === 'vif')    tone(440, 0.10, 'triangle', 0.10);
+  if (type === 'fourbe'){ tone(330, 0.12, 'sawtooth', 0.06); tone(312, 0.16, 'sawtooth', 0.05, 0.05); }
+}
+// descente d'une couche : grondement qui plonge
+function playDescend(){
+  if (!audioCtx || muted) return;
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(220, t);
+  o.frequency.exponentialRampToValueAtTime(46, t + 1.1);
+  const f = audioCtx.createBiquadFilter();
+  f.type = 'lowpass'; f.frequency.value = 600;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.22, t + 0.06);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+  o.connect(f); f.connect(g); g.connect(master);
+  o.start(t); o.stop(t + 1.3);
+  noiseBurst(1.0, 'lowpass', 240, 0.6, 0.16);
+}
+function playStart(){ tone(174, 0.3, 'sine', 0.12); tone(261, 0.4, 'sine', 0.09, 0.08); }
+function playDeath(){
+  tone(150, 0.6, 'triangle', 0.24);
+  tone(74, 0.9, 'sine', 0.22, 0.05);
+  noiseBurst(0.7, 'lowpass', 300, 0.6, 0.2, 0.04);
+}
+function playGuard(){ tone(392, 0.14, 'sine', 0.08); tone(523, 0.18, 'sine', 0.06, 0.05); }
+function playRecord(){
+  tone(523, 0.14, 'triangle', 0.12);
+  tone(659, 0.16, 'triangle', 0.11, 0.09);
+  tone(784, 0.30, 'triangle', 0.10, 0.18);
+}
+// frénésie « Tranchant » : montée scintillante
+function playFrenzy(){
+  tone(523, 0.10, 'triangle', 0.11);
+  tone(784, 0.12, 'triangle', 0.10, 0.06);
+  tone(1046, 0.24, 'sine', 0.10, 0.12);
+  noiseBurst(0.3, 'highpass', 3200, 1, 0.06, 0.03);
+}
+// bouclier gagné : timbre cristallin froid (contraste avec le braise)
+function playShieldGain(){
+  tone(880, 0.14, 'sine', 0.10);
+  tone(1320, 0.22, 'sine', 0.09, 0.07);
+  noiseBurst(0.2, 'highpass', 5000, 1, 0.05, 0.02);
+}
+// bouclier brisé : impact métallique grave
+function playShieldBreak(){
+  noiseBurst(0.22, 'bandpass', 900, 3, 0.4);
+  tone(300, 0.2, 'triangle', 0.14);
+  tone(150, 0.3, 'sine', 0.12, 0.03);
+}
+function buzz(p){ try{ if (navigator.vibrate) navigator.vibrate(p); }catch(e){} }
+
+// ---------- Ambiance : feu synthétisé (Web Audio, sans fichier) ----------
+// Du bruit, pas de note : un grondement (bruit passe-bas en boucle) qui rugit plus
+// fort et plus vif quand le danger monte, plus des crépitements aléatoires. Organique,
+// non-tonal — donc jamais « musical » ni fatigant comme un drone.
+let ambience = null;
+function startAmbience(){
+  if (!audioCtx || muted || ambience) return;
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  // grondement : bruit passe-bas (le corps grave du feu), volume discret
+  const roar = audioCtx.createBufferSource(); roar.buffer = buf; roar.loop = true;
+  const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380; lp.Q.value = 0.7;
+  const roarGain = audioCtx.createGain(); roarGain.gain.value = 0.0001;
+  roar.connect(lp); lp.connect(roarGain); roarGain.connect(master);
+  // léger scintillement (la flamme vacille) — n'augmente pas le volume moyen
+  const lfo = audioCtx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 1.4;
+  const lfoG = audioCtx.createGain(); lfoG.gain.value = 0.012;
+  lfo.connect(lfoG); lfoG.connect(roarGain.gain);
+  roar.start(); lfo.start();
+  ambience = { roar, lp, roarGain, lfo, crackTimer: 0.15 };
+}
+function updateAmbience(danger){
+  if (!ambience || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  // volume d'origine (discret) ; rugit un peu avec le danger
+  ambience.roarGain.gain.setTargetAtTime(0.05 + danger * 0.13, t, 0.4);
+  ambience.lp.frequency.setTargetAtTime(340 + danger * 540, t, 0.4);
+}
+function stopAmbience(){
+  if (!ambience || !audioCtx) return;
+  const a = ambience; ambience = null;
+  try{
+    const t = audioCtx.currentTime;
+    a.roarGain.gain.cancelScheduledValues(t);
+    a.roarGain.gain.setTargetAtTime(0.0001, t, 0.3);
+    a.roar.stop(t + 0.8); a.lfo.stop(t + 0.8);
+  }catch(e){}
+}
+// crépitement bref du feu : tick aigu ou pop grave de braise (varié = plus réaliste)
+function playCrackle(danger){
+  if (!audioCtx || muted) return;
+  if (Math.random() < 0.6){
+    noiseBurst(0.03 + Math.random() * 0.04, 'bandpass', 1900 + Math.random() * 3000, 5, 0.035 + danger * 0.05);  // tick
+  } else {
+    noiseBurst(0.05 + Math.random() * 0.06, 'lowpass', 300 + Math.random() * 280, 1, 0.04 + danger * 0.05);      // pop grave
+  }
+}
+ui.mute.addEventListener('click', (e) => {
+  e.stopPropagation();
+  volLevel = (volLevel + 1) % VOLUMES.length;
+  const v = VOLUMES[volLevel];
+  muted = v.v === 0;
+  ui.mute.textContent = v.label;
+  ui.mute.setAttribute('aria-label', 'Volume : ' + v.name);
+  if (!muted) initAudio();
+  if (master) master.gain.setTargetAtTime(Math.max(v.v, 0.0001), audioCtx.currentTime, 0.05);
+  if (muted) stopAmbience();
+  else if (state === 'playing' || state === 'descending') startAmbience();
+});
+
+// ---------- État du jeu ----------
+let state = 'menu';            // menu | playing | descending | dying | over | paused
+let score = 0, displayedScore = -1;
+let combo = 0;                 // nombre de parades enchaînées
+let layer = 1;                 // couche actuelle (profondeur)
+let guard = GUARD_MAX, guardTimer = 0, guardShown = -1;
+let elapsed = 0;
+let whiffLock = 0;             // verrou de lame après un raté
+let shake = 0, flash = 0, flashColor = '224,98,46';
+let descendTimer = 0, descendDepth = 0;
+let dyingTimer = 0;
+let recordBeaten = false;
+let frenzy = false, frenzyTimer = 0;        // mode « Tranchant »
+let perfectStreak = 0, shield = false, shieldFlash = 0;  // bouclier de maîtrise
+let zoneIdx = 0, zoneBanner = null;         // zone visuelle + jalon affiché à la transition
+let dangerLevel = 0;                        // danger ambiant lissé → pilote la rumeur chorale
+
+// vague
+let waveSize = 0, waveSpawned = 0, waveKilled = 0, spawnTimer = 0;
+
+let enemies = [], sparks = [], rings = [], texts = [], embers = [], beams = [];
+let blade = { angle: -Math.PI / 2, target: -Math.PI / 2, flare: 0 };  // orientation visuelle de la lame
+const keys = {};
+
+// ---------- Particules de fond (mutent par zone) ----------
+function makeEmbers(){
+  embers = [];
+  const n = Math.floor((W * H) / 24000);
+  for (let i = 0; i < n; i++){
+    embers.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      s: 0.5 + Math.random() * 1.7,
+      sp: 0.6 + Math.random() * 0.9,        // vitesse propre
+      seed: Math.random() * Math.PI * 2,    // phase d'ondulation / scintillement
+    });
+  }
+}
+
+// ---------- Réglages dérivés de la couche ----------
+function approachSpeed(){ return APPROACH_SPEED * (1 + (layer - 1) * 0.05); }
+function teleWindow(base){ return Math.max(TELE_FLOOR, base - (layer - 1) * TELE_SHRINK); }
+function concurrentCap(){ return Math.min(2 + Math.floor((layer - 1) / 2), 5); } // équité : plafond de menaces simultanées
+function zoneOf(l){ return Math.min(ZONES.length - 1, Math.floor((l - 1) / ZONE_SPAN)); }
+function zoneDrift(l){ return ((l - 1) % ZONE_SPAN) / ZONE_SPAN; }  // 0 → dérive douce dans la zone
+
+// ---------- Vagues ----------
+function startWave(){
+  waveSize = Math.min(20, 4 + layer * 2);
+  waveSpawned = 0; waveKilled = 0;
+  spawnTimer = 0.4;
+}
+function pickType(){
+  // composition selon la profondeur — introduction progressive des types
+  const r = Math.random();
+  if (layer >= 6 && r < 0.22) return 'fourbe';
+  if (layer >= 3 && r < 0.55) return 'vif';
+  return 'lent';
+}
+function spawnEnemy(){
+  const type = pickType();
+  const angle = Math.random() * Math.PI * 2;
+  const margin = Math.max(W, H) * 0.62;
+  enemies.push({
+    type, angle,
+    dist: margin,
+    state: 'approach',      // approach | waiting | feint | telegraph | parried | striking | dead
+    tele: 0, teleMax: 0,
+    feint: 0,
+    anim: 0,                // 0→1 progression visuelle
+    flashT: 0,
+    phase: Math.random() * 6.28,  // déphasage de l'oscillation de marche
+    spawnDist: Math.max(W, H) * 0.62,
+  });
+}
+
+// ---------- Parade ----------
+function angDiff(a, b){
+  let d = (a - b) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return Math.abs(d);
+}
+function resolveSwipe(angle){
+  if (state !== 'playing') return;
+  blade.target = angle;
+  blade.flare = 1;
+  if (whiffLock > 0) return;            // lame verrouillée : aucun effet
+  const cone = PARRY_CONE * Math.PI / 180;
+  // tous les ennemis parables dans le cône, triés du plus aligné au moins aligné
+  const inCone = enemies
+    .filter((e) => e.state === 'telegraph' && angDiff(e.angle, angle) <= cone)
+    .sort((a, b) => angDiff(a.angle, angle) - angDiff(b.angle, angle));
+  if (inCone.length === 0){ whiff(); return; }
+  parry(inCone[0]);
+  // frénésie : la lame allongée transperce et fauche aussi le suivant aligné
+  if (frenzy && inCone[1]) pierce(inCone[1]);
+}
+function parry(e){
+  const perfect = e.tele <= e.teleMax * PERFECT_FRACTION;  // paré dans le dernier tiers
+  combo++;
+  const mult = Math.min(COMBO_CAP, 1 + combo * COMBO_STEP);
+  const layerBonus = 1 + layer * 0.15;
+  const gain = Math.round(SCORE_PARRY * mult * layerBonus * (perfect ? 2 : 1) * (frenzy ? FRENZY_MULT : 1));
+  score += gain;
+
+  // frénésie « Tranchant » : amplificateur déclenché par la maîtrise du combo
+  if (combo >= FRENZY_COMBO){
+    if (!frenzy){
+      frenzy = true;
+      addText(cx, cy - 92, 'TRANCHANT', true);
+      flash = Math.max(flash, 0.3); flashColor = '255,180,120';
+      playFrenzy(); buzz([0, 16, 10, 16]);
+    }
+    frenzyTimer = FRENZY_DUR;       // chaque frappe prolonge la frénésie
+  }
+
+  // bouclier de maîtrise : parfaits CONSÉCUTIFS (un coup non-parfait casse la série)
+  if (perfect){
+    perfectStreak++;
+    if (perfectStreak >= PERFECT_SHIELD){
+      perfectStreak = 0;
+      if (!shield){
+        shield = true;
+        addText(cx, cy - 116, 'PROTÉGÉ', true);
+        playShieldGain();
+        buzz([0, 12, 8, 12]);
+      }
+    }
+  } else {
+    perfectStreak = 0;
+  }
+
+  const ex = cx + Math.cos(e.angle) * e.dist;
+  const ey = cy + Math.sin(e.angle) * e.dist;
+  spark(ex, ey, e.angle, perfect || frenzy);
+  addRing(ex, ey);
+  addText(ex, ey, (perfect ? 'PARFAIT +' : '+') + gain, perfect || frenzy);
+
+  blade.target = e.angle; blade.flare = 1;
+  if (!reducedMotion) shake = Math.max(shake, perfect ? 6 : 3);
+
+  e.state = 'dead';
+  waveKilled++;
+  if (perfect){ playPerfect(combo); buzz([8, 20, 14]); flash = Math.max(flash, 0.22); flashColor = '255,138,76'; }
+  else { playParry(combo); buzz(12); }
+  playRiposte();
+}
+// transpercement (frénésie) : la lame allongée traverse et tue le suivant aligné
+function pierce(e){
+  combo++;
+  const mult = Math.min(COMBO_CAP, 1 + combo * COMBO_STEP);
+  const gain = Math.round(SCORE_PARRY * mult * (1 + layer * 0.15) * FRENZY_MULT);
+  score += gain;
+  const ex = cx + Math.cos(e.angle) * e.dist;
+  const ey = cy + Math.sin(e.angle) * e.dist;
+  spark(ex, ey, e.angle, true);
+  addRing(ex, ey);
+  addText(ex, ey, 'TRANSPERCÉ +' + gain, true);
+  beams.push({ x: ex, y: ey, life: 1 });   // faisceau du combattant jusqu'à la cible
+  e.state = 'dead';
+  waveKilled++;
+  if (!reducedMotion) shake = Math.max(shake, 5);
+  playPierce();
+}
+function whiff(){
+  whiffLock = WHIFF_LOCK;
+  combo = 0;
+  frenzy = false;
+  perfectStreak = 0;
+  blade.flare = 1;
+  playWhiff();
+  buzz(6);
+}
+
+// ---------- Dégât ----------
+function takeHit(e){
+  e.state = 'dead';
+  waveKilled++;
+  combo = 0;
+  frenzy = false;
+  perfectStreak = 0;
+
+  // bouclier de maîtrise : encaisse le coup, la garde est préservée
+  if (shield){
+    shield = false;
+    shieldFlash = 1;
+    flash = Math.max(flash, 0.35); flashColor = '150,200,230';
+    if (!reducedMotion) shake = Math.max(shake, 7);
+    addText(cx, cy - 70, 'bouclier brisé', false);
+    playShieldBreak();
+    buzz([0, 30, 20, 30]);
+    return;
+  }
+
+  guard--;
+  guardTimer = 0;
+  flash = Math.max(flash, 0.4); flashColor = '140,42,30';
+  if (!reducedMotion) shake = Math.max(shake, 9);
+  playHit();
+  buzz([0, 40, 30, 40]);
+  if (guard <= 0) die();
+}
+
+// ---------- Effets ----------
+function spark(x, y, angle, big){
+  const n = reducedMotion ? 4 : (big ? 22 : 13);
+  for (let i = 0; i < n; i++){
+    const a = angle + Math.PI + (Math.random() - 0.5) * 2.4;  // gerbe vers le centre
+    const v = (big ? 320 : 220) * (0.3 + Math.random());
+    sparks.push({
+      x, y,
+      vx: Math.cos(a) * v,
+      vy: Math.sin(a) * v,
+      r: 0.8 + Math.random() * 2,
+      life: 1,
+      decay: 1.2 + Math.random() * 1.4,
+      hot: big,
+    });
+  }
+}
+function addRing(x, y){ rings.push({ x, y, r: 12, life: 1 }); }
+function addText(x, y, str, big){
+  texts.push({ x: Math.min(W - 60, Math.max(60, x)), y: Math.max(60, y), str, life: 1, big: !!big });
+}
+
+// ---------- Déroulement ----------
+function startGame(){
+  enemies = []; sparks = []; rings = []; texts = []; beams = [];
+  score = 0; displayedScore = -1; combo = 0; layer = 1;
+  guard = GUARD_MAX; guardTimer = 0; guardShown = -1;
+  elapsed = 0; whiffLock = 0; shake = 0; flash = 0;
+  recordBeaten = false; descendDepth = 0;
+  frenzy = false; frenzyTimer = 0;
+  perfectStreak = 0; shield = false; shieldFlash = 0;
+  zoneIdx = 0; zoneBanner = null;
+  dangerLevel = 0;
+  blade.angle = blade.target = -Math.PI / 2; blade.flare = 0;
+  ui.score.classList.remove('record');
+  ui.layer.textContent = 'Couche ' + roman(layer);
+  state = 'playing';
+  ui.menu.classList.add('hidden');
+  ui.over.classList.add('hidden');
+  ui.hud.classList.add('visible');
+  ui.guard.classList.add('visible');
+  initAudio(); playStart();
+  startAmbience();
+  startWave();
+}
+
+function descend(){
+  state = 'descending';
+  descendTimer = 1.1;
+  const prevZone = zoneOf(layer);
+  layer++;
+  zoneIdx = zoneOf(layer);
+  if (zoneIdx !== prevZone){
+    // saut franc d'une zone à l'autre : jalon + flash + nouvelles particules
+    zoneBanner = { name: ZONES[zoneIdx].name, num: zoneIdx + 1, life: 1 };
+    flash = Math.max(flash, 0.45); flashColor = ZONES[zoneIdx].ring.join(',');
+    makeEmbers();
+    buzz([0, 40, 40, 60]);
+  }
+  playDescend();
+  buzz([0, 30, 60, 30]);
+}
+
+function die(){
+  state = 'dying';
+  dyingTimer = 0;
+  spark(cx, cy, -Math.PI / 2, true);
+  if (!reducedMotion) shake = 16;
+  stopAmbience();
+  playDeath();
+  buzz(200);
+  ui.hud.classList.remove('visible');
+  ui.guard.classList.remove('visible');
+}
+
+async function endGame(){
+  state = 'over';
+  const final = Math.floor(score);
+  ui.finalScore.textContent = final;
+  ui.finalDepth.textContent = 'Couche ' + roman(layer) + ' atteinte';
+  if (final > best){
+    best = final;
+    ui.newBest.classList.add('show');
+    ui.overBest.textContent = 'Record · ' + best;
+    await saveBest(best);
+  } else {
+    ui.newBest.classList.remove('show');
+    const diff = best - final;
+    ui.overBest.textContent = (best > 0 && diff > 0)
+      ? 'Record · ' + best + '  ·  à ' + diff + ' points'
+      : 'Record · ' + best;
+  }
+  ui.over.classList.remove('hidden');
+}
+
+// ---------- Entrées : swipe directionnel ----------
+let down = false, sx = 0, sy = 0, sid = null;
+window.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('button')) return;
+  initAudio();
+  if (state === 'menu'){ startGame(); return; }
+  if (state === 'over'){ return; }
+  if (state === 'paused'){
+    ui.pause.classList.add('hidden');
+    state = 'playing';
+    startAmbience();
+    return;
+  }
+  if (state === 'playing' || state === 'descending'){
+    if (sid === null){
+      sid = e.pointerId; down = true; sx = e.clientX; sy = e.clientY;
+    }
+  }
+});
+window.addEventListener('pointerup', (e) => {
+  if (e.pointerId !== sid) return;
+  sid = null;
+  if (!down) return;
+  down = false;
+  const dx = e.clientX - sx, dy = e.clientY - sy;
+  if (Math.hypot(dx, dy) >= SWIPE_MIN_DIST){
+    resolveSwipe(Math.atan2(dy, dx));
+  }
+});
+window.addEventListener('pointercancel', (e) => {
+  if (e.pointerId === sid){ sid = null; down = false; }
+});
+ui.replay.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
+
+// clavier (desktop) : flèches = 4 directions cardinales
+const KEY_ANGLE = {
+  ArrowRight: 0, ArrowDown: Math.PI / 2, ArrowLeft: Math.PI, ArrowUp: -Math.PI / 2,
+};
+window.addEventListener('keydown', (e) => {
+  if ((e.key === ' ' || e.key === 'Enter') && (state === 'menu' || state === 'over')){
+    initAudio(); startGame(); return;
+  }
+  if (state === 'paused'){
+    ui.pause.classList.add('hidden'); state = 'playing'; startAmbience(); return;
+  }
+  if (state === 'playing' && KEY_ANGLE[e.key] !== undefined && !keys[e.key]){
+    keys[e.key] = true;
+    resolveSwipe(KEY_ANGLE[e.key]);
+  }
+});
+window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+// pause automatique : appel, notification, changement d'app
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && state === 'playing'){
+    state = 'paused';
+    ui.pause.classList.remove('hidden');
+    stopAmbience();
+  }
+});
+
+// ---------- Mise à jour ----------
+function update(dt){
+  // particules : comportement piloté par la zone courante
+  const P = ZONES[zoneIdx].part;
+  for (const em of embers){
+    em.y += P.vy * em.sp * dt;
+    em.seed += dt * P.tw;
+    if (P.vy < 0 && em.y < -6){ em.y = H + 6; em.x = Math.random() * W; }
+    else if (P.vy > 0 && em.y > H + 6){ em.y = -6; em.x = Math.random() * W; }
+  }
+  // jalon de zone (fondu)
+  if (zoneBanner){
+    zoneBanner.life -= dt * 0.42;
+    if (zoneBanner.life <= 0) zoneBanner = null;
+  }
+  // ambiance : danger = lames qui se lèvent (au plus près de la frappe) + profondeur
+  let threat = 0;
+  for (const e of enemies){ if (e.state === 'telegraph') threat += 1 - e.tele / e.teleMax; }
+  const rawDanger = Math.min(1, threat / 3 + (state === 'playing' ? (layer - 1) * 0.015 : 0));
+  dangerLevel += (rawDanger - dangerLevel) * Math.min(1, dt * 3);
+  updateAmbience(dangerLevel);
+  // crépitements du feu : cadence qui s'accélère avec le danger
+  if (ambience){
+    ambience.crackTimer -= dt;
+    if (ambience.crackTimer <= 0){
+      playCrackle(dangerLevel);
+      ambience.crackTimer = (0.04 + Math.random() * 0.20) / (0.6 + dangerLevel);
+    }
+  }
+
+  if (state === 'playing'){
+    elapsed += dt;
+    if (whiffLock > 0) whiffLock -= dt;
+    // frénésie : décompte ; chaque frappe l'a rechargée
+    if (frenzy){
+      frenzyTimer -= dt;
+      if (frenzyTimer <= 0) frenzy = false;
+    }
+    blade.flare = Math.max(0, blade.flare - dt * 3);
+    blade.angle += angSign(blade.target - blade.angle) * Math.min(Math.abs(angShort(blade.target - blade.angle)), dt * 18);
+
+    // régénération de garde
+    if (guard < GUARD_MAX){
+      guardTimer += dt;
+      if (guardTimer >= GUARD_REGEN_TIME){
+        guard++; guardTimer = 0; playGuard();
+        addText(cx, cy - 70, 'garde +1', false);
+      }
+    }
+
+    // record battu en direct
+    if (!recordBeaten && best > 0 && score > best){
+      recordBeaten = true;
+      addText(cx, cy - 96, 'RECORD !', true);
+      flash = Math.max(flash, 0.25); flashColor = '255,138,76';
+      ui.score.classList.add('record');
+      playRecord(); buzz(40);
+    }
+
+    // apparition de la vague
+    if (waveSpawned < waveSize){
+      spawnTimer -= dt;
+      if (spawnTimer <= 0){
+        spawnEnemy(); waveSpawned++;
+        const base = Math.max(0.58, 1.35 - layer * 0.045);
+        spawnTimer = base * (0.6 + Math.random() * 0.7);
+      }
+    }
+
+    // combien d'ennemis télégraphient déjà (plafond d'équité)
+    let teleActive = 0;
+    for (const e of enemies){
+      if (e.state === 'telegraph' || e.state === 'feint') teleActive++;
+    }
+
+    // ennemis
+    for (let i = enemies.length - 1; i >= 0; i--){
+      const e = enemies[i];
+      e.anim = Math.min(1, e.anim + dt * 2.5);
+      if (e.flashT > 0) e.flashT -= dt;
+
+      if (e.state === 'approach'){
+        e.dist -= approachSpeed() * dt;
+        if (e.dist <= ENGAGE_DIST){
+          e.dist = ENGAGE_DIST;
+          if (teleActive < concurrentCap()){
+            engage(e); teleActive++;
+          } else {
+            e.state = 'waiting';
+          }
+        }
+      } else if (e.state === 'waiting'){
+        if (teleActive < concurrentCap()){ engage(e); teleActive++; }
+      } else if (e.state === 'feint'){
+        e.feint -= dt;
+        if (e.feint <= 0){
+          // la vraie amorce : le Fourbe télégraphe pour de bon
+          e.state = 'telegraph';
+          e.teleMax = teleWindow(TELE_FOURBE);
+          e.tele = e.teleMax; e.anim = 0;
+          e.flashT = 0.12;
+          playTele('fourbe');
+        }
+      } else if (e.state === 'telegraph'){
+        e.tele -= dt;
+        if (e.tele <= 0){ takeHit(e); return; }   // non paré : il frappe
+      }
+
+      if (e.state === 'dead'){ enemies.splice(i, 1); continue; }
+    }
+
+    // fin de vague → descente
+    if (waveSpawned >= waveSize && enemies.length === 0){
+      descend();
+    }
+  }
+
+  else if (state === 'descending'){
+    descendTimer -= dt;
+    descendDepth += dt * 240;                 // l'arène s'enfonce
+    if (whiffLock > 0) whiffLock -= dt;
+    if (descendTimer <= 0){
+      descendDepth = 0;
+      ui.layer.textContent = 'Couche ' + roman(layer);
+      state = 'playing';
+      startWave();
+    }
+  }
+
+  else if (state === 'dying'){
+    dyingTimer += dt;
+    if (dyingTimer > 1.0) endGame();
+  }
+
+  // particules / effets (toujours)
+  for (let i = sparks.length - 1; i >= 0; i--){
+    const p = sparks[i];
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vy += 220 * dt; p.vx *= 0.96;
+    p.life -= p.decay * dt;
+    if (p.life <= 0) sparks.splice(i, 1);
+  }
+  for (let i = rings.length - 1; i >= 0; i--){
+    const r = rings[i];
+    r.r += 280 * dt; r.life -= 2 * dt;
+    if (r.life <= 0) rings.splice(i, 1);
+  }
+  for (let i = texts.length - 1; i >= 0; i--){
+    const t = texts[i];
+    t.y -= 42 * dt; t.life -= 0.85 * dt;
+    if (t.life <= 0) texts.splice(i, 1);
+  }
+  for (let i = beams.length - 1; i >= 0; i--){
+    beams[i].life -= dt * 4;            // disparaît vite (éclair de lame)
+    if (beams[i].life <= 0) beams.splice(i, 1);
+  }
+
+  shake = Math.max(0, shake - dt * 26);
+  flash = Math.max(0, flash - dt * 1.6);
+  if (shieldFlash > 0) shieldFlash = Math.max(0, shieldFlash - dt * 2.2);
+
+  // HUD
+  const s = Math.floor(score);
+  if (s !== displayedScore){ displayedScore = s; ui.score.textContent = s; }
+  if (frenzy && state === 'playing'){
+    ui.combo.textContent = '⚔ TRANCHANT ×' + combo;
+    ui.combo.classList.add('on');
+  } else if (combo >= 2 && state === 'playing'){
+    ui.combo.textContent = '×' + combo + ' enchaînées';
+    ui.combo.classList.add('on');
+  } else {
+    ui.combo.classList.remove('on');
+  }
+  renderGuard();
+}
+
+function engage(e){
+  if (e.type === 'fourbe'){
+    e.state = 'feint';
+    e.feint = FEINT_DUR;
+    e.anim = 0; e.flashT = 0.1;
+    // pas de cue "réel" : la feinte trompe volontairement
+  } else {
+    e.state = 'telegraph';
+    e.teleMax = teleWindow(e.type === 'vif' ? TELE_VIF : TELE_LENT);
+    e.tele = e.teleMax; e.anim = 0; e.flashT = 0.12;
+    playTele(e.type);
+  }
+}
+
+// utilitaires d'angle pour la rotation douce de la lame
+function angShort(a){ while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; }
+function angSign(a){ return angShort(a) >= 0 ? 1 : -1; }
+
+// jauge de garde (DOM)
+function renderGuard(){
+  if (guard !== guardShown || ui.guard.childElementCount !== GUARD_MAX){
+    guardShown = guard;
+    ui.guard.innerHTML = '';
+    for (let i = 0; i < GUARD_MAX; i++){
+      const pip = document.createElement('div');
+      pip.className = 'pip' + (i < guard ? ' full' : (i === guard ? ' charging' : ''));
+      ui.guard.appendChild(pip);
+    }
+  }
+}
+
+// ---------- Rendu ----------
+function draw(){
+  // fond : palette de la zone courante + dérive douce vers le fond de zone
+  const Z = ZONES[zoneIdx];
+  const dk = 1 - zoneDrift(layer) * 0.10;          // s'assombrit légèrement dans la zone
+  const rgb = (c, f) => 'rgb(' + Math.round(c[0] * f) + ',' + Math.round(c[1] * f) + ',' + Math.round(c[2] * f) + ')';
+  const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.72);
+  bg.addColorStop(0, rgb(Z.bg0, dk));
+  bg.addColorStop(1, rgb(Z.bg1, dk));
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  // parois rocheuses : rim sombre teinté par la zone (enferme l'arène)
+  const rim = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.30, cx, cy, Math.max(W, H) * 0.72);
+  rim.addColorStop(0, 'rgba(0,0,0,0)');
+  rim.addColorStop(1, 'rgba(' + Math.round(Z.wall[0] * 0.4) + ',' + Math.round(Z.wall[1] * 0.4) + ',' + Math.round(Z.wall[2] * 0.4) + ',0.34)');
+  ctx.fillStyle = rim;
+  ctx.fillRect(0, 0, W, H);
+
+  // feu en arrière-plan : lueur ardente qui monte du bas, plus forte en profondeur
+  // et avec le danger ; scintille. Volontairement cantonnée au bas pour ne pas noyer
+  // les télégraphes oranges au centre.
+  const fireI = Math.min(1, zoneIdx * 0.26 + dangerLevel * 0.32);
+  if (fireI > 0.02){
+    const flick = 0.72 + Math.sin(elapsed * 7) * 0.16 + Math.sin(elapsed * 13.7 + 1.3) * 0.12;
+    const fg = ctx.createLinearGradient(0, H, 0, H * 0.55);
+    fg.addColorStop(0, 'rgba(255,108,38,' + (fireI * 0.3 * flick).toFixed(3) + ')');
+    fg.addColorStop(0.5, 'rgba(224,70,30,' + (fireI * 0.12 * flick).toFixed(3) + ')');
+    fg.addColorStop(1, 'rgba(224,70,30,0)');
+    ctx.fillStyle = fg;
+    ctx.fillRect(0, H * 0.55, W, H * 0.45);
+  }
+
+  ctx.save();
+  let oy = 0;
+  if (state === 'descending'){
+    // tout glisse vers le haut : sensation d'enfoncement
+    oy = -Math.sin(Math.min(1, (1.1 - descendTimer) / 1.1) * Math.PI) * 60;
+  }
+  if (shake > 0){
+    ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake + oy);
+  } else {
+    ctx.translate(0, oy);
+  }
+
+  // particules de la zone (poussière / braises / cendres / lave)
+  const PP = Z.part;
+  const pcol = PP.col[0] + ',' + PP.col[1] + ',' + PP.col[2];
+  for (const em of embers){
+    const a = 0.14 + (Math.sin(em.seed) * 0.5 + 0.5) * 0.16;
+    const sway = Math.sin(em.seed) * PP.amp;
+    ctx.fillStyle = 'rgba(' + pcol + ',' + a.toFixed(3) + ')';
+    ctx.fillRect(em.x + sway, em.y, em.s, em.s);
+  }
+
+  // anneaux de l'arène (teintés par la zone)
+  const rc = Z.ring[0] + ',' + Z.ring[1] + ',' + Z.ring[2];
+  ctx.lineWidth = 1;
+  for (let k = 1; k <= 3; k++){
+    const rr = ENGAGE_DIST + k * 70;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(' + rc + ',' + (0.12 / k).toFixed(3) + ')';
+    ctx.stroke();
+  }
+
+  // anneaux d'effet (parades)
+  for (const r of rings){
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,138,76,' + (r.life * 0.55).toFixed(3) + ')';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+  }
+
+  // faisceaux de transpercement : éclair de lame du combattant vers la cible
+  for (const b of beams){
+    ctx.strokeStyle = 'rgba(255,235,200,' + (b.life * 0.85).toFixed(3) + ')';
+    ctx.lineWidth = 2 + b.life * 3;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(255,200,150,1)'; ctx.shadowBlur = 12 * b.life;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 4);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // silhouettes : tri par profondeur pour un chevauchement correct
+  // (ceux au-dessus du centre passent derrière le combattant, les autres devant)
+  const sorted = enemies.slice().sort((a, b) => enemyY(a) - enemyY(b));
+  let pi = 0;
+  for (; pi < sorted.length && enemyY(sorted[pi]) < cy; pi++) drawEnemy(sorted[pi]);
+  drawPlayer();
+  for (; pi < sorted.length; pi++) drawEnemy(sorted[pi]);
+
+  // étincelles
+  for (const p of sparks){
+    ctx.fillStyle = p.hot
+      ? 'rgba(255,180,120,' + Math.max(0, p.life).toFixed(3) + ')'
+      : 'rgba(224,98,46,' + Math.max(0, p.life).toFixed(3) + ')';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // textes flottants
+  ctx.textAlign = 'center';
+  for (const t of texts){
+    ctx.font = t.big
+      ? "600 26px 'Oswald', Arial, sans-serif"
+      : "500 18px 'Oswald', Arial, sans-serif";
+    ctx.fillStyle = t.big
+      ? 'rgba(255,180,120,' + Math.max(0, t.life).toFixed(3) + ')'
+      : 'rgba(232,220,200,' + Math.max(0, t.life).toFixed(3) + ')';
+    ctx.fillText(t.str, t.x, t.y);
+  }
+
+  ctx.restore();
+
+  // flash plein écran
+  if (flash > 0){
+    ctx.fillStyle = 'rgba(' + flashColor + ',' + (flash * 0.4).toFixed(3) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // halo de frénésie : liseré chaud en bordure quand le mode Tranchant est actif
+  if (frenzy){
+    const pulse = 0.16 + Math.sin(elapsed * 9) * 0.06;
+    const fr = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.32, cx, cy, Math.max(W, H) * 0.7);
+    fr.addColorStop(0, 'rgba(255,180,120,0)');
+    fr.addColorStop(1, 'rgba(255,150,80,' + pulse.toFixed(3) + ')');
+    ctx.fillStyle = fr;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // jalon de zone : grand titre qui apparaît au passage d'une nouvelle zone
+  if (zoneBanner){
+    const a = Math.min(1, zoneBanner.life * 1.6);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(232,220,200,' + (a * 0.85).toFixed(3) + ')';
+    ctx.font = "300 15px 'Oswald', Arial, sans-serif";
+    ctx.fillText('ZONE ' + roman(zoneBanner.num), cx, cy - 26);
+    ctx.fillStyle = 'rgba(255,180,120,' + a.toFixed(3) + ')';
+    ctx.font = "600 38px 'Oswald', Arial, sans-serif";
+    ctx.fillText(zoneBanner.name, cx, cy + 12);
+  }
+
+  // tour de descente : repère de profondeur sur le bord gauche
+  if (state === 'playing' || state === 'descending' || state === 'paused') drawTower();
+}
+
+// ---------- Tour de descente ----------
+// Un puits vertical sur le bord gauche : la surface (créneaux) en haut, les étages
+// qui s'empilent au-dessus de toi à mesure que tu t'enfonces, un marqueur de braise
+// qui descend. Symbolise les couches franchies. Teinté par la zone, défile en profondeur.
+function drawTower(){
+  const x = 16;                                   // bord gauche
+  const top = 70;                                 // sommet = surface
+  const w = 18, fh = 14, maxRows = 10, hold = 7;  // grande tour, pleine hauteur constante
+  // démarre couche 1 en haut ; le marqueur descend jusqu'à la ligne `hold`, puis le puits défile
+  const firstFloor = Math.max(1, layer - hold);
+  const Z = ZONES[zoneIdx];
+  const tint = Z.ring;
+  const t = tint[0] + ',' + tint[1] + ',' + tint[2];
+
+  ctx.save();
+  ctx.lineCap = 'butt';
+
+  // créneaux de surface : la sortie, au sommet, visible tant qu'on est près du départ
+  if (firstFloor === 1){
+    ctx.fillStyle = 'rgba(' + t + ',0.7)';
+    for (let c = 0; c < 4; c++) ctx.fillRect(x + 1 + c * (w / 4), top - 6, w / 8, 6);
+  }
+
+  // parois du puits (pleine hauteur)
+  ctx.strokeStyle = 'rgba(' + t + ',0.5)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(x, top); ctx.lineTo(x, top + maxRows * fh);
+  ctx.moveTo(x + w, top); ctx.lineTo(x + w, top + maxRows * fh);
+  ctx.stroke();
+
+  // étages (couches) : franchis pleins, à venir faibles
+  for (let i = 0; i < maxRows; i++){
+    const couche = firstFloor + i;
+    const yy = top + i * fh;
+    const passed = couche < layer, here = couche === layer;
+    if (passed){
+      ctx.fillStyle = 'rgba(' + t + ',0.10)';
+      ctx.fillRect(x, yy, w, fh);
+    }
+    ctx.strokeStyle = passed
+      ? 'rgba(' + t + ',0.55)'
+      : (here ? 'rgba(255,170,110,0.9)' : 'rgba(' + t + ',0.18)');
+    ctx.lineWidth = here ? 1.6 : 1;
+    ctx.beginPath();
+    ctx.moveTo(x, yy); ctx.lineTo(x + w, yy);
+    ctx.stroke();
+  }
+  // plancher de fermeture en bas
+  ctx.strokeStyle = 'rgba(' + t + ',0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, top + maxRows * fh); ctx.lineTo(x + w, top + maxRows * fh); ctx.stroke();
+
+  // marqueur de braise : ta position (couche courante)
+  const my = top + (layer - firstFloor) * fh + fh / 2;
+  const mx = x + w / 2;
+  const glow = ctx.createRadialGradient(mx, my, 0, mx, my, 8);
+  glow.addColorStop(0, 'rgba(255,200,140,0.95)');
+  glow.addColorStop(1, 'rgba(224,98,46,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(mx, my, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#FFE6C0';
+  ctx.beginPath(); ctx.arc(mx, my, 2.6, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
+// position au sol d'un ennemi (pour le tri par profondeur)
+function enemyY(e){ return cy + Math.sin(e.angle) * e.dist; }
+
+// silhouette de guerrier encapuchonné, debout, tournée vers le centre.
+// 100 % canvas : cape + capuche + arme qui se lève — l'arme levée EST l'ouverture à frapper.
+function drawEnemy(e){
+  const x = cx + Math.cos(e.angle) * e.dist;
+  const y = cy + Math.sin(e.angle) * e.dist;
+  const fs = (x <= cx) ? 1 : -1;                 // se tourne vers le centre
+  const closeness = Math.min(1, Math.max(0, (e.spawnDist - e.dist) / (e.spawnDist - ENGAGE_DIST)));
+  const bob = (e.state === 'approach') ? Math.sin(elapsed * 8 + e.phase) * 1.4 : 0;
+
+  // identité visuelle par type
+  let scale = (0.95 + closeness * 0.22) * FIGURE_SCALE;
+  let fill = '#2A211A', edge = 'rgba(196,150,108,0.92)', wpThick = 2.2, axe = false;
+  if (e.type === 'lent'){ scale *= 1.12; fill = '#2E231A'; edge = 'rgba(232,168,108,0.95)'; wpThick = 3; axe = true; }
+  if (e.type === 'vif'){ scale *= 0.84; fill = '#33241A'; edge = 'rgba(255,196,140,0.95)'; wpThick = 1.8; }
+  if (e.type === 'fourbe'){ fill = '#281E2C'; edge = 'rgba(214,168,238,0.92)'; wpThick = 1.8; }
+
+  ctx.save();
+  ctx.translate(x, y + bob);
+  ctx.scale(scale, scale);
+  if (e.state === 'waiting') ctx.globalAlpha = 0.5;
+
+  // silhouette drapée : un seul contour fluide (corps + capuche), ourlet ondulé
+  ctx.beginPath();
+  ctx.moveTo(-6, 14);
+  ctx.quadraticCurveTo(-7.5, 3, -5, -5);              // flanc gauche bombé
+  ctx.quadraticCurveTo(-6, -10, -2.4, -12);           // épaule → cou gauche
+  ctx.quadraticCurveTo(-5, -19, fs * 1.6, -20.5);     // capuche, arrondie, penche vers l'avant
+  ctx.quadraticCurveTo(5, -19, 2.4, -12);             // cou droit
+  ctx.quadraticCurveTo(6, -10, 5, -5);                // épaule droite
+  ctx.quadraticCurveTo(7.5, 3, 6, 14);                // flanc droit bombé
+  ctx.quadraticCurveTo(3, 11.5, 0, 13.5);             // ourlet ondulé
+  ctx.quadraticCurveTo(-3, 11.5, -6, 14);
+  ctx.closePath();
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.lineWidth = 1.7; ctx.strokeStyle = edge; ctx.stroke();
+
+  // ombre de la capuche : voile doux dégradé (pas de visage net, pas d'œil)
+  const hollow = ctx.createRadialGradient(fs * 0.8, -13, 0.5, fs * 0.8, -13, 5);
+  hollow.addColorStop(0, 'rgba(0,0,0,0.5)');
+  hollow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = hollow;
+  ctx.beginPath(); ctx.arc(fs * 0.8, -13, 5, 0, Math.PI * 2); ctx.fill();
+
+  // arme : se lève à l'amorce (l'ouverture qu'il faut frapper)
+  let raise = 0, glow = 0, perfectZone = false, hue = 'rgba(120,96,80,';
+  if (e.state === 'telegraph'){
+    const prog = 1 - e.tele / e.teleMax;          // 0 → 1 vers la frappe
+    raise = Math.min(1, prog * 3);                // se lève vite puis reste haute
+    glow = 0.45 + prog * 0.55;
+    perfectZone = e.tele <= e.teleMax * PERFECT_FRACTION;
+    hue = perfectZone ? 'rgba(255,140,80,' : 'rgba(224,98,46,';
+  } else if (e.state === 'feint'){
+    raise = (1 - e.feint / FEINT_DUR) * 0.5;      // demi-levée trompeuse
+    glow = 0.4; hue = 'rgba(196,150,224,';
+  }
+  drawWeapon(fs, raise, glow, hue, wpThick, axe, e.state === 'telegraph' || e.state === 'feint');
+
+  // halo de l'ouverture parfaite : "frappe MAINTENANT"
+  if (perfectZone){
+    ctx.beginPath();
+    ctx.arc(fs * 1, -12, 17, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,170,110,' + (glow * 0.5).toFixed(3) + ')';
+    ctx.lineWidth = 1.4; ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// bras + lame de l'ennemi, pivotant de la garde basse à l'overhead
+function drawWeapon(fs, raise, glow, hue, thick, axe, lit){
+  const restA = 0.5, upA = -2.1;                  // radians, référentiel "avant = +x"
+  const a = restA + (upA - restA) * raise;
+  const px = fs * 3.5, py = -6;                   // épaule avant
+  const len = 16;
+  const tx = px + Math.cos(a) * len * fs;
+  const ty = py + Math.sin(a) * len;
+  if (lit && glow > 0){ ctx.shadowColor = hue + '1)'; ctx.shadowBlur = 8 * glow; }
+  ctx.strokeStyle = lit ? (hue + glow.toFixed(3) + ')') : 'rgba(120,96,80,0.75)';
+  ctx.lineWidth = thick; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+  if (axe){                                       // tranchant de hache pour le lourd
+    ctx.beginPath();
+    ctx.arc(tx, ty, 3.6, a - 1, a + 1);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+}
+
+// le combattant central : silhouette debout qui tient sa lame, toujours visible
+function drawPlayer(){
+  const px = cx, py = cy;
+
+  // halo de braise au sol
+  const halo = ctx.createRadialGradient(px, py + 8, 0, px, py + 8, 56);
+  halo.addColorStop(0, 'rgba(224,98,46,0.34)');
+  halo.addColorStop(0.5, 'rgba(224,98,46,0.10)');
+  halo.addColorStop(1, 'rgba(224,98,46,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(px, py + 8, 56 * FIGURE_SCALE, 0, Math.PI * 2); ctx.fill();
+
+  if (state === 'dying') return;
+
+  const fs = (Math.cos(blade.angle) >= 0) ? 1 : -1;   // se tourne vers la visée
+  const S = FIGURE_SCALE;
+
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.scale(S, S);
+
+  // silhouette drapée du combattant : un seul contour fluide, ourlet ondulé
+  const body = ctx.createLinearGradient(-6, -22, 6, 16);
+  body.addColorStop(0, '#46291A');
+  body.addColorStop(1, '#150C07');
+  ctx.beginPath();
+  ctx.moveTo(-6.5, 15);
+  ctx.quadraticCurveTo(-8.5, 3, -5.5, -6);             // flanc gauche bombé
+  ctx.quadraticCurveTo(-6.5, -11, -2.6, -13);          // épaule → cou gauche
+  ctx.quadraticCurveTo(-5.5, -21, fs * 1.8, -22.5);    // capuche arrondie, penche vers la visée
+  ctx.quadraticCurveTo(5.5, -21, 2.6, -13);            // cou droit
+  ctx.quadraticCurveTo(6.5, -11, 5.5, -6);             // épaule droite
+  ctx.quadraticCurveTo(8.5, 3, 6.5, 15);               // flanc droit bombé
+  ctx.quadraticCurveTo(3.2, 12, 0, 14.5);              // ourlet ondulé
+  ctx.quadraticCurveTo(-3.2, 12, -6.5, 15);
+  ctx.closePath();
+  ctx.fillStyle = body; ctx.fill();
+  ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(255,150,90,0.85)'; ctx.stroke();
+
+  // plis de la cape : deux courbes internes douces pour la matière
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-2, -7); ctx.quadraticCurveTo(-3, 4, -2, 13); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(2.4, -7); ctx.quadraticCurveTo(3.4, 4, 2.4, 13); ctx.stroke();
+
+  // ombre de la capuche : voile doux dégradé (pas d'œil, pas de visage net)
+  const hollow = ctx.createRadialGradient(fs * 0.9, -14, 0.5, fs * 0.9, -14, 5.5);
+  hollow.addColorStop(0, 'rgba(0,0,0,0.45)');
+  hollow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = hollow;
+  ctx.beginPath(); ctx.arc(fs * 0.9, -14, 5.5, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+
+  // bouclier de maîtrise : anneau d'acier froid autour du combattant (contraste avec le braise)
+  if (shield){
+    const pulse = 0.5 + Math.sin(elapsed * 4) * 0.18;
+    ctx.strokeStyle = 'rgba(150,200,230,' + pulse.toFixed(3) + ')';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(px, py - 4 * S, 24 * S, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(200,230,250,' + (pulse * 0.5).toFixed(3) + ')';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(px, py - 4 * S, 27 * S, 0, Math.PI * 2); ctx.stroke();
+  }
+  // onde de rupture du bouclier
+  if (shieldFlash > 0){
+    ctx.strokeStyle = 'rgba(180,215,240,' + (shieldFlash * 0.8).toFixed(3) + ')';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.arc(px, py - 4 * S, (24 + (1 - shieldFlash) * 40) * S, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  // la lame visible : pointe vers la visée (repère monde), s'embrase au geste
+  const reach = (18 + blade.flare * 22) * (frenzy ? 1.4 : 1) * S;
+  const a = blade.angle;
+  const handx = px + Math.cos(a) * 7 * S,     handy = py + Math.sin(a) * 7 * S - 4 * S;
+  const tipx  = px + Math.cos(a) * reach,     tipy  = py + Math.sin(a) * reach - 4 * S;
+  // garde (crossguard)
+  const gx = Math.cos(a + Math.PI / 2), gy = Math.sin(a + Math.PI / 2);
+  ctx.strokeStyle = 'rgba(214,150,96,0.95)';
+  ctx.lineWidth = 2.4 * S; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(handx - gx * 4 * S, handy - gy * 4 * S);
+  ctx.lineTo(handx + gx * 4 * S, handy + gy * 4 * S);
+  ctx.stroke();
+  // lame (plus large, plus blanche et plus lumineuse en frénésie)
+  ctx.shadowColor = frenzy ? 'rgba(255,235,200,1)' : 'rgba(255,180,120,1)';
+  ctx.shadowBlur = (6 + blade.flare * 10) * (frenzy ? 1.8 : 1);
+  ctx.strokeStyle = frenzy
+    ? 'rgba(255,240,210,' + (0.9 + blade.flare * 0.1).toFixed(3) + ')'
+    : 'rgba(255,200,150,' + (0.75 + blade.flare * 0.25).toFixed(3) + ')';
+  ctx.lineWidth = (2.6 + blade.flare * 2) * (frenzy ? 1.5 : 1) * S;
+  ctx.beginPath();
+  ctx.moveTo(handx, handy);
+  ctx.lineTo(tipx, tipy);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // lame verrouillée (après un raté) : anneau rouge bref
+  if (whiffLock > 0){
+    ctx.strokeStyle = 'rgba(150,46,30,' + (whiffLock / WHIFF_LOCK * 0.6).toFixed(3) + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py - 4 * S, 22 * S, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+// ---------- Boucle ----------
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(0.033, (now - last) / 1000);
+  last = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ---------- Lancement ----------
+(async function init(){
+  resize();
+  makeEmbers();
+  best = await loadBest();
+  ui.menuBest.textContent = best > 0 ? 'Record · ' + best : '';
+  renderGuard();
+  requestAnimationFrame(loop);
+})();
+window.addEventListener('resize', makeEmbers);
+
+// PWA : service worker pour le mode hors-ligne (ignoré hors déploiement)
+if ('serviceWorker' in navigator && location.protocol === 'https:'){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
