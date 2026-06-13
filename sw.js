@@ -1,5 +1,5 @@
 /* Sous le Fer — service worker (mode hors-ligne) */
-const CACHE = 'sous-le-fer-v1';
+const CACHE = 'sous-le-fer-v2';
 const ASSETS = [
   './',
   './index.html',
